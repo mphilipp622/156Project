@@ -1,4 +1,5 @@
 import socket
+import pickle
 import sys
 sys.path.append("..") # Adds higher directory to python modules path.
 
@@ -55,7 +56,17 @@ def main():
     # implement main client execution here. I imagine this is for a single client.
     # We can simulate multiple clients by opening multiple consoles.
     # Or we could just have this single file create a list of clients. Not sure how to approach it at the moment.
-    return
+    
+    port = 12345
+
+    s = socket.socket()
+    s.connect(("127.0.0.1", port))
+
+    data = s.recv(4096)
+
+    dataDecomp = pickle.loads(data)
+
+    print dataDecomp
 
 if __name__ == "__main__":
     # call main when this program is run. This if statement ensures this code is not run if imported as a module
