@@ -12,10 +12,10 @@ class Client:
     def __init__(self, inputFile, newIP, newPort, newBalance):
         self.__ipAddress = newIP
         self.__portNumber = newPort
-        self.__balance = newBalance
-        self.__isParticipatingInAuction = False
-        self.__items = dict()
-        self.__inventory = list()
+        self.__balance = newBalance # the amount of money this client has
+        self.__isParticipatingInAuction = False # sets True if this client is participating in an active auction
+        self.__items = dict() # hashtable of (Item, maxBidPrice) key-value pairs
+        self.__inventory = list() # list containing the items this client has won
         self.PopulateItemMaxPrices(inputFile)
         self.ConnectToServer()
 
@@ -56,4 +56,5 @@ def main():
     return
 
 if __name__ == "__main__":
+    # call main when this program is run. This if statement ensures this code is not run if imported as a module
     main()
