@@ -7,18 +7,19 @@ import Item as itemPackage
 class Server:
 
     def __init__(self, inputFile, newIP, newPort):
-        self.__ipAddress = newIP
-        self.__portNumber = newPort
-        self.__currentItem = None # current item being auctioned
-        self.__currentHighestBidder = "" # IP address of the current highest bidder
-        self.__isAuctionActive = False # sets true if an auction is active
-        self.__items = dict() # hashtable of (Item, currentHighestBid) KV pairs
-        self.__connections = dict() # hashtable of (connection, ipaddress) KV pairs
+        self._ipAddress = newIP
+        self._portNumber = newPort
+        self._currentItem = None # current item being auctioned
+        self._currentHighestBidder = "" # IP address of the current highest bidder
+        self._isAuctionActive = False # sets true if an auction is active
+        self._items = dict() # hashtable of (Item, currentHighestBid) KV pairs
+        self._connections = dict() # hashtable of (connection, ipaddress) KV pairs
         self.PopulateItems(inputFile)
         self.StartServerListener()
     
     def StartServerListener(self):
-        self.__serverSocket = socket.socket()
+        self._serverSocket = socket.socket()
+        self._serverSocket.bind((self._ipAddress, self._portNumber))
         print "Socket Created"
 
     def StartNewAuction(self):
