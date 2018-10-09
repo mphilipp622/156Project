@@ -40,9 +40,7 @@ class Server:
 
     
 def main():
-    # implement main client execution here. I imagine this is for a single client.
-    # We can simulate multiple clients by opening multiple consoles.
-    # Or we could just have this single file create a list of clients. Not sure how to approach it at the moment.
+    # Server Execution Goes Here
     return
 
 if __name__ == "__main__":
