@@ -62,11 +62,12 @@ def main():
     s = socket.socket()
     s.connect(("127.0.0.1", port))
 
-    data = s.recv(4096)
+    while True:
+        data = s.recv(4096)
 
-    dataDecomp = pickle.loads(data)
+        dataDecomp = pickle.loads(data)
 
-    print dataDecomp
+        print dataDecomp
 
 if __name__ == "__main__":
     # call main when this program is run. This if statement ensures this code is not run if imported as a module
