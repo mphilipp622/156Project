@@ -2,7 +2,6 @@ import socket
 import pickle
 import sys
 sys.path.append("..") # Adds higher directory to python modules path.
-
 import Item as itemPackage
 
 class Client:
@@ -67,7 +66,7 @@ def main():
 
         dataDecomp = pickle.loads(data)
 
-        print dataDecomp
+        print(dataDecomp)
 
 if __name__ == "__main__":
     # call main when this program is run. This if statement ensures this code is not run if imported as a module

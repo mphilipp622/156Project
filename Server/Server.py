@@ -21,9 +21,9 @@ class Server:
         self._maxNumberOfClients = newMaxNumberOfClients # Specifies the max number of clients server accepts
         # self._items = dict() # hashtable of (Item, (ipAddress, currentHighestBid)) KV pairs
         self._connections = dict() # hashtable of (socket, bidAmount) KV pairs
-        self._items = list()
+        self._items = dict() # hashtable of item key with a value of (price, bidder)
         self._getBidLock = threading.Lock()
-        self.PopulateItems(inputFile)
+        self.PopulateItems(inputFile) # initialize random items
         self.StartServerListener()
     
     def StartServerListener(self):
@@ -71,15 +71,27 @@ class Server:
     def ServerLoop(self):
         print("ServerLoop")
 
-        while True:
-            if not self._isAuctionActive:
-                self.StartNewAuction()
+        # while True:
+            # if not self._isAuctionActive:
+            #     self.StartNewAuction()
 
             # set a new high bidder
             # self.GetBidsFromClient()
 
             # broadcast new high bidder to clients
             # self.BroadcastBidUpdate()
+
+    def StartAuction(self, itemForSale):
+        auctionMessage = "New Auction Started for item " + itemForSale.GetName() + ". Starting bid is $" + str(itemForSale.GetInitialPrice()) + "\n"
+        print(auctionMessage)
+
+        # self._isAuctionActive = True
+
+        # send to clients a tuple of ("Message", bidItem)
+        dataToSend = pickle.dumps(("NewAuction", itemForSale))
+
+        for key, value in self._connections.items():
+            key.send(dataToSend)
 
     def StartNewAuction(self):
         # This function should randomize a new item to auction and broadcast the new item to all connected clients
@@ -155,7 +167,30 @@ class Server:
     
     def PopulateItems(self, inputFile):
         # This function is called from constructor. It will populate items in dinctionary based on the input file given
-        self._items.append(itemPackage.Item("TestItem", 123, "TestDescription", 5, 100))
+        
+        words = list()
+
+        for line in inputFile:
+            for word in line.split():
+                words.append(word)
+
+        i = 3 # skip the top line
+        while i < len(words):
+            # i + 0 = itemName
+            # i + 1 = units
+            # i + 2 = price
+            newItem = itemPackage.Item(words[i], int(words[i + 1]), int(words[i + 2]))
+            self._items[newItem] = (None, int(words[i + 2]))
+            self.StartAuction(newItem)
+            i += 3
+
+        # for i in range(1, random.randint(2, 20)):
+        #     newPrice = random.randint(20, 300)
+        #     newItem = itemPackage.Item("TestItem" + str(i), i, "TestDescription" + str(i), random.randint(1, 10), newPrice)
+        #     self._items[newItem] = (None, newPrice) 
+        #     self.StartAuction(newItem)
+        # self._items[new Item("TestItem", 123, "TestDescription", 5, 100)] = 100
+        # self._items.append(itemPackage.Item("TestItem", 123, "TestDescription", 5, 100))
         return
 
     def BroadcastToWinner(self):
@@ -171,7 +206,15 @@ class Server:
     
 def main():
     # Program Execution
-    server = Server(None, "", 12345, 5)
+
+    if len(sys.argv) > 1:
+        inputFile = sys.argv[1]
+    else:
+        print("Please provide an input txt file")
+        exit()
+
+    # port 12345. Max clients = 5. Blank IP
+    server = Server(open(inputFile, 'r'), "", 12345, 5)
 
     threading.Thread(target = server.UpdateClientConnections).start() # Thread for listening to new clients
     threading.Thread(target = server.ServerLoop).start() # thread for main server loop
