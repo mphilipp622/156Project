@@ -1,5 +1,3 @@
-# import uuid
-
 # This class is used to track auction data. The server will create instances of this class and send them over the network.
 
 class Auction:
@@ -9,7 +7,6 @@ class Auction:
         self._currentHighestBidder = None
         self._numberOfRoundsWithoutBid = 0 # this will track how many rounds this auction has had no bids
         self._receivedBidThisRound = False
-        # self._id = uuid.uuid4().hex
 
     def GetItem(self):
         return self._item
