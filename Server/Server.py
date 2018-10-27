@@ -3,12 +3,15 @@ import pickle
 import random
 import select
 import sys
+import time     # used for sleeping the server between updates
 
 # import thread module 
 import threading
-sys.path.append("..") # Adds higher directory to python modules path.
+sys.path.append("..") # Adds higher directory to python modules path. This allows us to grab Item.py
 
 import Item as itemPackage
+import Auction
+import uuid
 
 class Server:
 
@@ -20,12 +23,12 @@ class Server:
         self._isAuctionActive = False # sets true if an auction is active
         self._maxNumberOfClients = newMaxNumberOfClients # Specifies the max number of clients server accepts
         self._connections = dict() # hashtable of (userID, socket) KV pairs
-        self._items = dict() # hashtable of itemID key with a value of (Item, bidder, price)
+        self._auctions = dict() # hashtable of auctionID key with a value of Auction
         self._getBidLock = threading.Lock()
+        self._lifetimeConnectionCount = 0 # tracks how many clients have connected over the lifetime of execution. Used for grabbing sockets from _connections
+
         self.PopulateItems(inputFile) # initialize random items
         self.StartServerListener()
-
-        self._lifetimeConnectionCount = 0 # tracks how many clients have connected over the lifetime of execution. Used for grabbing sockets from _connections
     
     def StartServerListener(self):
 
@@ -48,83 +51,66 @@ class Server:
 
             print('Got connection from', clientAddress)
 
-            # inform new connection of current auction if there is one
-            if self._isAuctionActive:
-                dataToSend = pickle.dumps((self._currentItem, self._currentHighestBidder))
-                clientSocket.send(dataToSend)
-
             self._lifetimeConnectionCount += 1
-            self._connections[self._lifetimeConnectionCount] = clientSocket# add this client to the dictionary of connections    
+            self._connections[self._lifetimeConnectionCount] = clientSocket # add this client to the dictionary of connections    
 
     def StartAuction(self, itemForSale):
         auctionMessage = "New Auction Started for item " + itemForSale.GetName() + ". Starting bid is $" + str(itemForSale.GetInitialPrice()) + "\n"
         print(auctionMessage)
 
-        # self._isAuctionActive = True
+        # Create a new entry in the hashtable.
+        self._auctions[uuid.uuid4().hex] = Auction.Auction(itemForSale)
 
-        # send to clients a tuple of ("Message", bidItem)
+    def CloseAuction(self, auctionID):
+        # decrement the number of units on the item
+        self._auctions[auctionID].GetItem().RemoveUnit()
+
+        if self._auctions[auctionID].GetItem().GetUnits() <= 0:
+            # if the item has no more units, delete it from the dictionary
+            del self._auctions[auctionID]
+        else:
+            # otherwise, reset the auction
+            self._auctions[auctionID].ResetAuction()
+
 
     def GetBidsFromClients(self):
 
         # Non-threaded implementation. Pool the clients and get all their bids.
+        if len(self._connections) == 0:
+            return
 
-        for key, value in self._connections.items():
+        for clientID, socket in self._connections.items():
             try:
-                data = value.recv(4096)
+                data = socket.recv(4096)
 
                 # should receive a tuple (itemName, clientBid) from client
-                itemID, clientBid = pickle.loads(data)
+                auctionID, clientBid = pickle.loads(data)
 
-                item = self._items[itemID][0] # grab the Item instance
-                print(itemID)
+                item = self._auctions[auctionID].GetItem() # grab the Item instance
+                print(auctionID)
                 print(item.GetName())
 
-                if clientBid > self._items[itemID][1]:
-                    print("Received Bid From Client " + str(key))
-                    self._items[itemID] = (item, key, clientBid)
-                    print("Client " + str(key) + " Has Highest Bid on " + item.GetName() + ":\t$" + str(clientBid))
-                # else:
-                #     raise error("Client disconnected")
+                if clientBid > self._auctions[auctionID].GetCurrentBid():
+                    self._auctions[auctionID].SetNewHighestBid(clientID, clientBid)
+                    print("Client " + str(clientID) + " Has Highest Bid on " + item.GetName() + ":\t$" + str(clientBid))
 
             except:
                 print("Exception Occurred")
-                value.close()
-
-    def GetBidFromClient(self, client, address):
-        # This function should be listening for bid information from a single client. Multithreaded
-        while True:
-
-            self._getBidLock.acquire() # check out a lock to ensure we're reading and writing data atomically
-
-            try:
-                data = client.recv(1024)
-                if data:
-                    if data > self._currentHighestBidder[1]:
-                        self._currentHighestBidder = (client, data)
-                        self.BroadcastBidUpdate()
-                    # response = data
-                    # client.send(response)
-                else:
-                    raise error('Client disconnected')
-
-            except:
-                client.close()
-                self._getBidLock.release() # be sure to release lock if we lose connection
-                return False
-            
-            self._getBidLock.release()
+                socket.close()
+        
+        # iterate over the auctions and update the number of rounds since receiving a bid
+        for auctionID, auction in self._auctions.items():
+            auction.ReceivedNoBids()
 
     def BroadcastNewBiddingRound(self):
         # This function will tell all connected clients that another round of bidding has started
-        dataToSend = pickle.dumps(("NewRound", self._items))
+        dataToSend = pickle.dumps(("NewRound", self._auctions))
 
-        for key, value in self._connections.items():
-            value.send(dataToSend)
-
-        # self.BroadcastToWinner()
+        for clientID, socket in self._connections.items():
+            self.SendDataToClient(socket, "NewRound", self._auctions)
     
     def PopulateItems(self, inputFile):
-        # This function is called from constructor. It will populate items in dinctionary based on the input file given
+        # This function is called from constructor. It will parse the input file and start auctions for each item
         
         words = list()
 
@@ -139,27 +125,40 @@ class Server:
             # i + 2 = price
             newItem = itemPackage.Item(words[i], int(words[i + 1]), int(words[i + 2]))
 
-            # Create a new entry in the hashtable.
-            self._items[newItem.GetID()] = (newItem, None, int(words[i + 2]))
-
             self.StartAuction(newItem)
             i += 3
 
     def BroadcastToWinner(self):
-        # Check to see if the high bidder is still connected
-        try:
-            self._currentHighestBidder[0].send((self._currentItem, self._currentHighestBidder[1]))
-        except socket.error:
-            del self._connections[self._currentHighestBidder[0]]
+        # Check the auctions and see if any have finished. If an auction has finished, broadcast the winning to the bidder
+        
+        if len(self._connections) == 0:
+            return
 
-        self._isAuctionActive = False
+        for auctionID, auction in self._auctions.items():
+            if auction.IsFinished():
+                try:
+                    # send a tuple to the client of ("AuctionWon", (item, finalBid))
+                    tupleToSend = (auction.GetItem(), auction.GetCurrentBid())
+                    clientSocket = self._connections[auction.GetCurrentHighestBidder()]
+                    self.SendDataToClient(clientSocket, "AuctionWon", tupleToSend)
+                    self.CloseAuction(auctionID)
+                except socket.error:
+                    print("Failed to deliver item to winner Client " + str(auction.GetCurrentHighestBidder()) )
+                    # del self._connections[self._currentHighestBidder[0]]
     
+    def SendDataToClient(self, socket, message, data):
+        # helper function that packages data and sends it to a client
+        dataToSend = pickle.dumps((message, data))
+        socket.send(dataToSend)
+
     def ServerLoop(self):
         print("ServerLoop")
 
         while True:
             self.BroadcastNewBiddingRound()
             self.GetBidsFromClients()
+            self.BroadcastToWinner()
+            time.sleep(2)   # sleep thread between bidding rounds
     
 def main():
     # Program Execution

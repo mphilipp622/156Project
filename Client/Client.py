@@ -13,27 +13,23 @@ class Client:
     def __init__(self, inputFile, newIP, newPort, newBalance):
         self._ipAddress = newIP
         self._portNumber = newPort
-        self._balance = newBalance # the amount of money this client has
-        self._isParticipatingInAuction = False # sets True if this client is participating in an active auction
-        self._items = dict() # hashtable of (Item, maxBidPrice) key-value pairs
-        self._inventory = list() # list containing the items this client has won
-        self.PopulateItemMaxPrices(inputFile)
+        self._balance = newBalance              # the amount of money this client has
+        self._activeAuction = None              # this Will be used to determine which auction the client is engaged in 
+        self._inventory = list()                # list containing the items this client has won. Can use Item.AddUnit() to increase the number of units of the item
+
         self.ConnectToServer()
 
-    def PopulateItemMaxPrices(self, inputFile):
-        # this function will read the input file containing item information and add them to the __items dictionary
-        # This is dependent on the structure of the file Ming Li is looking to give us
-        # newItem = itemPackage.Item("itemName", 123, "description", 20, 100).
-        return
-
     def ConnectToServer(self):
-        # this function should connect the client to the server. Need to establish connection still
+        # this function should connect the client to the server.
         return
 
-    def GetAuction(self):
-        # This function listens for a new auction from the server. Server will probably send tuple (item, startingBid)
-        # This function will also use some kind of randomization to determine if this client will participate
-        # Client should send its starting bid to the server at the end of this function. SendBid(newBid)
+    def StartBid(self):
+        # This function should first check if this client has an active auction or not.
+        # If we don't have an active auction, then we want to receive a message from the server
+        # The server sends a list of auctions in this format:
+            # ("NewRound", auctionDictionary)
+            # auctionDictionary has GUID strings as a key and Auction class objects as types.
+        
         return
     
     def SendBid(self):
@@ -55,9 +51,8 @@ class Client:
 
 def main():
     # implement main client execution here. I imagine this is for a single client.
-    # We can simulate multiple clients by opening multiple consoles.
-    # Or we could just have this single file create a list of clients. Not sure how to approach it at the moment.
-    
+    # We can simulate multiple clients by opening multiple consoles and running python Client.py
+
     port = 12345
 
     s = socket.socket()
@@ -68,11 +63,12 @@ def main():
 
         dataDecomp = pickle.loads(data)
 
-        for key, value in dataDecomp[1].items():
-            print(value[0].GetName() + "\t" + str(value))
-        
-        dataToSend = pickle.dumps((random.choice(list(dataDecomp[1])), 3999))
-        s.send(dataToSend)
+        if dataDecomp[0] == "AuctionWon":
+            print("Won " + dataDecomp[1][0].GetName())
+        elif dataDecomp[0] == "NewRound":
+            itemChoice = random.choice(list(dataDecomp[1]))
+            dataToSend = pickle.dumps((itemChoice, 3999))
+            s.send(dataToSend)
 
 if __name__ == "__main__":
     # call main when this program is run. This if statement ensures this code is not run if imported as a module
