@@ -2,7 +2,8 @@ import socket
 import pickle
 import sys
 sys.path.append("..") # Adds higher directory to python modules path.
-import Item as itemPackage
+import Item
+import random
 
 class Client:
 
@@ -38,6 +39,7 @@ class Client:
     def SendBid(self):
         # This function will send a new bid to the server. Likely will use socket.send(bidValue)
         # Client should NOT be able to bid if the amount they are looking to spend is larger than their current balance
+        # Client should send None if it is not bidding on an item
         return
 
     def GetAuctionUpdate(self):
@@ -66,7 +68,11 @@ def main():
 
         dataDecomp = pickle.loads(data)
 
-        print(dataDecomp)
+        for key, value in dataDecomp[1].items():
+            print(value[0].GetName() + "\t" + str(value))
+        
+        dataToSend = pickle.dumps((random.choice(list(dataDecomp[1])), 3999))
+        s.send(dataToSend)
 
 if __name__ == "__main__":
     # call main when this program is run. This if statement ensures this code is not run if imported as a module

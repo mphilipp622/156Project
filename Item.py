@@ -1,6 +1,9 @@
+import uuid # used for generating GUID's for items
+
 class Item:
 
     def __init__(self, newName, newUnits, newInitialPrice):
+        self._id = uuid.uuid4().hex
         self._name = newName
         # self._id = newID
         # self._description = newDescription
@@ -10,8 +13,8 @@ class Item:
     def GetName(self):
         return self._name
 
-    # def GetID(self):
-    #     return self._id
+    def GetID(self):
+        return self._id
 
     # def GetDescription(self):
     #     return self._description
