@@ -11,18 +11,17 @@ class Client:
     # Recommend referring to this site for basic intro: https://www.geeksforgeeks.org/socket-programming-python/
     # Recommend installing Python plugins for VS Code. The intellisense is awesome
 
-    def __init__(self, newBalance):
+    def __init__(self, serverIP, newBalance):
         self._balance = newBalance      # the amount of money this client has
         self._activeAuction = None      # this Will be used to determine which auction the client is engaged in. Recommend a Tuple of (GUID, Auction). GUID is passed from the server
         self._inventory = list()        # list containing the items this client has won. Can use Item.AddUnit() to increase the number of units of the item
         self._server = None             # Server socket the client is connected to
-        self.ConnectToServer()
+        self.ConnectToServer(serverIP)
 
-    def ConnectToServer(self):
+    def ConnectToServer(self, serverIP):
         # this function should connect the client to the server.
-        
         self._server = socket.socket()
-        self._server.connect(("127.0.0.1", 12345))   # connect to localhost on port 12345, which is specified in server file
+        self._server.connect((serverIP, 12345))   # connect to localhost on port 12345, which is specified in server file
 
     def ClientLoop(self):
         # This is the main execution loop for the client that's called from main(). Some example code is shown below.
@@ -75,8 +74,11 @@ def main():
     # implement main client execution here. I imagine this is for a single client.
     # We can do multiple clients by opening multiple consoles and running python Client.py
     # could also put Client.py, Item.py, and Auction.py on another computer and run Client.py. That should work on a LAN.
-
-    testClient = Client(150)    # client has $150 balance
+    if len(sys.argv) < 2:
+        print("Error: Please put in an IP address for the server. E.G: python Client.py 192.168.1.1")
+        exit()
+    
+    testClient = Client(sys.argv[1], 150)    # client has $150 balance
     testClient.ClientLoop()
     
 if __name__ == "__main__":
