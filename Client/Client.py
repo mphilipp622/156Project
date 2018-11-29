@@ -31,6 +31,7 @@ class Client:
         while True:                           # Infinite Loop
             data = self._server.recv(4096)    # This listens for data from the server. Program execution is blocked here until data is received
 
+            # print(data)
             dataDecomp = pickle.loads(data)   # This decompresses the data sent from the server. This allows us to get a Tuple object from the server.
 
             # The server sends tuples in the form of ("Message", data)
