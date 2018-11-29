@@ -22,15 +22,18 @@ class Client:
         # this function should connect the client to the server.
         
         self._server = socket.socket()
-        self._server.connect(("127.0.0.1", 12345))   # connect to localhost on port 12345, which is specified in server file
+        self._server.connect(("Zinge-Laptop", 12345))   # connect to localhost on port 12345, which is specified in server file
+        #127.0.0.1
 
     def ClientLoop(self):
         # This is the main execution loop for the client that's called from main(). Some example code is shown below.
         # The loop should run a series of Functions that are defined in this class. Recommend having a look at Server.ServerLoop() for an example
 
         while True:                           # Infinite Loop
-            data = self._server.recv(4096)    # This listens for data from the server. Program execution is blocked here until data is received
-
+            dataSize = int(self._server.recv(1024))
+            print(dataSize)
+            data = self._server.recv(dataSize)    # This listens for data from the server. Program execution is blocked here until data is received
+            # data = self._server.makefile("r")
             dataDecomp = pickle.loads(data)   # This decompresses the data sent from the server. This allows us to get a Tuple object from the server.
 
             # The server sends tuples in the form of ("Message", data)
@@ -44,7 +47,7 @@ class Client:
                 # You'll probably want to keep track of the client's active auction's GUID.
                 auctionChoice = random.choice(list(dataDecomp[1])) # randomly picks an auction to go for
                 dataToSend = pickle.dumps((auctionChoice, 3999))   # sends a bid to the auction for $3999
-                self._server.send(dataToSend)                      # sends the bid to the server. Server handles the rest
+                self._server.sendall(dataToSend)                      # sends the bid to the server. Server handles the rest
 
     def JoinAuction(self):
         # This function should first check if this client has an active auction or not.
