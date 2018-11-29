@@ -79,9 +79,9 @@ class Server:
         if len(self._connections) == 0:
             return
 
-        for clientID, socket in self._connections.items():
+        for clientID, clientSocket in self._connections.items():
             try:
-                data = socket.recv(4096)
+                data = clientSocket.recv(4096)
 
                 # should receive a tuple (itemName, clientBid) from client
                 auctionID, clientBid = pickle.loads(data)
@@ -96,7 +96,7 @@ class Server:
 
             except:
                 print("Exception Occurred")
-                socket.close()
+                clientSocket.close()
         
         # iterate over the auctions and update the number of rounds since receiving a bid
         for auctionID, auction in self._auctions.items():
@@ -106,8 +106,8 @@ class Server:
         # This function will tell all connected clients that another round of bidding has started
         dataToSend = pickle.dumps(("NewRound", self._auctions))
 
-        for clientID, socket in self._connections.items():
-            self.SendDataToClient(socket, "NewRound", self._auctions)
+        for clientID, clientSocket in self._connections.items():
+            self.SendDataToClient(clientSocket, "NewRound", self._auctions)
     
     def PopulateItems(self, inputFile):
         # This function is called from constructor. It will parse the input file and start auctions for each item
@@ -146,10 +146,10 @@ class Server:
                     print("Failed to deliver item to winner Client " + str(auction.GetCurrentHighestBidder()) )
                     # del self._connections[self._currentHighestBidder[0]]
     
-    def SendDataToClient(self, socket, message, data):
+    def SendDataToClient(self, clientSocket, message, data):
         # helper function that packages data and sends it to a client
-        dataToSend = pickle.dumps((message, data))
-        socket.send(dataToSend)
+        dataToSend = pickle.dumps((message, data)) # ("NewRound", dict())
+        clientSocket.sendall(dataToSend)
 
     def ServerLoop(self):
         print("ServerLoop")
@@ -170,7 +170,7 @@ def main():
         exit()
 
     # port 12345. Max clients = 5. Blank IP
-    server = Server(open(inputFile, 'r'), "", 12345, 5)
+    server = Server(open(inputFile, 'r'), "", 80, 5)
 
     threading.Thread(target = server.UpdateClientConnections).start() # Thread for listening to new clients
     threading.Thread(target = server.ServerLoop).start() # thread for main server loop
