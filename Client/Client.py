@@ -22,17 +22,35 @@ class Client:
         # this function should connect the client to the server.
         self._server = socket.socket()
         self._server.connect((serverIP, 12345))   # connect to localhost on port 12345, which is specified in server file
-
     def ClientLoop(self):
         # This is the main execution loop for the client that's called from main(). Some example code is shown below.
         # The loop should run a series of Functions that are defined in this class. Recommend having a look at Server.ServerLoop() for an example
 
         while True:                           # Infinite Loop
-            data = self._server.recv(4096)    # This listens for data from the server. Program execution is blocked here until data is received
+            amountrecv = 0
+            packetsize = int(self._server.recv(1024))
+  
+            self._server.send("receivedSize")
+            print(packetsize)
+            data = ""
+            while amountrecv < packetsize:
+                print(amountrecv)
 
-            print(data)
-            # dataDecomp = pickle.loads(data)   # This decompresses the data sent from the server. This allows us to get a Tuple object from the server.
-            return
+                rec = self._server.recv(1024)    # This listens for data from the server. Program execution is blocked here until data is received
+     
+                
+                amountrecv += len(rec)
+                    #if amountrecv < packetsize:
+                    #self._server.send("notReceived")
+                data+=rec
+           # print(sys.getsizeof(data))
+            print(amountrecv)
+
+            self._server.send("received")
+            dataDecomp = pickle.loads(data)   # This decompresses the data sent from the server. This allows us to get a Tuple object from the server.
+            #return
+            print(dataDecomp[0])
+            continue
             # The server sends tuples in the form of ("Message", data)
             if dataDecomp[0] == "AuctionWon":
                 # If server sends "AuctionWon" message, it will contain Tuple data (Item, finalBidPrice)
