@@ -148,8 +148,9 @@ class Server:
     
     def SendDataToClient(self, clientSocket, message, data):
         # helper function that packages data and sends it to a client
-        dataToSend = pickle.dumps((message, data)) # ("NewRound", dict())
-        clientSocket.sendall(dataToSend)
+        clientSocket.sendall("testing")
+        # dataToSend = pickle.dumps((message, data)) # ("NewRound", dict())
+        # clientSocket.sendall(dataToSend)
 
     def ServerLoop(self):
         print("ServerLoop")
@@ -170,7 +171,7 @@ def main():
         exit()
 
     # port 12345. Max clients = 5. Blank IP
-    server = Server(open(inputFile, 'r'), "", 80, 5)
+    server = Server(open(inputFile, 'r'), "", 12345, 5)
 
     threading.Thread(target = server.UpdateClientConnections).start() # Thread for listening to new clients
     threading.Thread(target = server.ServerLoop).start() # thread for main server loop
