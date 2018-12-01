@@ -148,17 +148,39 @@ class Server:
     
     def SendDataToClient(self, clientSocket, message, data):
         # helper function that packages data and sends it to a client
-        clientSocket.sendall("testing")
-        # dataToSend = pickle.dumps((message, data)) # ("NewRound", dict())
-        # clientSocket.sendall(dataToSend)
+        # clientSocket.sendall("testing")
+        clientACK = "notReceived"
+        dataToSend = pickle.dumps((message, data)) # ("NewRound", dict())
+        # dataToSend += '\0'
+        # print(dataToSend)
+
+        while clientACK == "notReceived":
+            
+            # print(sys.getsizeof(dataToSend))
+            # print(str(sys.getsizeof(dataToSend)))
+
+            clientSocket.send(str(len(dataToSend)))
+            receivedSize = clientSocket.recv(1024)
+            
+            if receivedSize != "receivedSize":
+                continue
+
+            print("Client received size")
+            
+            clientSocket.sendall(dataToSend)
+            while clientACK == "notReceived":
+                clientACK = clientSocket.recv(1024)
+            print("Client received ACK")
+            # print(clientACK)
+        
 
     def ServerLoop(self):
         print("ServerLoop")
 
         while True:
             self.BroadcastNewBiddingRound()
-            self.GetBidsFromClients()
-            self.BroadcastToWinner()
+            # self.GetBidsFromClients()
+            # self.BroadcastToWinner()
             time.sleep(2)   # sleep thread between bidding rounds
     
 def main():
