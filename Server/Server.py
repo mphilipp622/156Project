@@ -80,24 +80,20 @@ class Server:
             return
 
         for clientID, clientSocket in self._connections.items():
-            try:
-                data = clientSocket.recv(4096)
+            
+            data = self.ReceiveDataFromClient(clientSocket)
+                
+            # should receive a tuple (itemName, clientBid) from client
+            auctionID, clientBid = pickle.loads(data)
 
-                # should receive a tuple (itemName, clientBid) from client
-                auctionID, clientBid = pickle.loads(data)
+            item = self._auctions[auctionID].GetItem() # grab the Item instance
+            print(auctionID)
+            print(item.GetName())
 
-                item = self._auctions[auctionID].GetItem() # grab the Item instance
-                print(auctionID)
-                print(item.GetName())
+            if clientBid > self._auctions[auctionID].GetCurrentBid():
+                self._auctions[auctionID].SetNewHighestBid(clientID, clientBid)
+                print("Client " + str(clientID) + " Has Highest Bid on " + item.GetName() + ":\t$" + str(clientBid))
 
-                if clientBid > self._auctions[auctionID].GetCurrentBid():
-                    self._auctions[auctionID].SetNewHighestBid(clientID, clientBid)
-                    print("Client " + str(clientID) + " Has Highest Bid on " + item.GetName() + ":\t$" + str(clientBid))
-
-            except:
-                print("Exception Occurred")
-                clientSocket.close()
-        
         # iterate over the auctions and update the number of rounds since receiving a bid
         for auctionID, auction in self._auctions.items():
             auction.ReceivedNoBids()
@@ -148,16 +144,10 @@ class Server:
     
     def SendDataToClient(self, clientSocket, message, data):
         # helper function that packages data and sends it to a client
-        # clientSocket.sendall("testing")
         clientACK = "notReceived"
         dataToSend = pickle.dumps((message, data)) # ("NewRound", dict())
-        # dataToSend += '\0'
-        # print(dataToSend)
 
         while clientACK == "notReceived":
-            
-            # print(sys.getsizeof(dataToSend))
-            # print(str(sys.getsizeof(dataToSend)))
 
             clientSocket.send(str(len(dataToSend)))
             receivedSize = clientSocket.recv(1024)
@@ -173,7 +163,6 @@ class Server:
             print("Client received ACK")
             # print(clientACK)
         
-
     def ServerLoop(self):
         print("ServerLoop")
 
@@ -181,7 +170,29 @@ class Server:
             self.BroadcastNewBiddingRound()
             # self.GetBidsFromClients()
             # self.BroadcastToWinner()
-            time.sleep(2)   # sleep thread between bidding rounds
+            time.sleep(1)   # sleep thread between bidding rounds
+
+    # helper function for properly receivin data from server
+    def ReceiveDataFromClient(self, socket):
+        amountrecv = 0
+        packetsize = int(clientSocket.recv(1024))
+
+        clientSocket.sendall("receivedSize")
+        data = ""
+
+        while amountrecv < packetsize:
+            try:
+                rec = clientSocket.recv(1024)
+            except:
+                print("Exception Occurred")
+                clientSocket.close()
+
+            amountrecv += len(rec)
+
+            data += rec
+        
+        clientSocket.sendall("received")
+        return data
     
 def main():
     # Program Execution

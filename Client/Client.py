@@ -27,26 +27,8 @@ class Client:
         # The loop should run a series of Functions that are defined in this class. Recommend having a look at Server.ServerLoop() for an example
 
         while True:                           # Infinite Loop
-            amountrecv = 0
-            packetsize = int(self._server.recv(1024))
-  
-            self._server.send("receivedSize")
-            print(packetsize)
-            data = ""
-            while amountrecv < packetsize:
-                print(amountrecv)
-
-                rec = self._server.recv(1024)    # This listens for data from the server. Program execution is blocked here until data is received
-     
-                
-                amountrecv += len(rec)
-                    #if amountrecv < packetsize:
-                    #self._server.send("notReceived")
-                data+=rec
-           # print(sys.getsizeof(data))
-            print(amountrecv)
-
-            self._server.send("received")
+            data = self.ReceiveDataFromServer()
+            
             dataDecomp = pickle.loads(data)   # This decompresses the data sent from the server. This allows us to get a Tuple object from the server.
             #return
             print(dataDecomp[0])
@@ -88,6 +70,47 @@ class Client:
         # The item will be sent as an (Item, finalBidPrice) tuple
         # The client should add the new item to the inventory list and subtract the cost from their current balance
         return
+
+    def SendDataToServer(self, message, data):
+        # helper function that packages data and sends it to a client
+        serverACK = "notReceived"
+        dataToSend = pickle.dumps((message, data)) # ("NewRound", dict())
+
+        while serverACK == "notReceived":
+
+            self._server.send(str(len(dataToSend))) # send the packet size
+            receivedSize = self._server.recv(1024)  # wait for server acknowledgement
+            
+            if receivedSize != "receivedSize":
+                continue
+
+            # print("S received size")
+            
+            self._server.sendall(dataToSend)
+            while clientACK == "notReceived":
+                clientACK = self._server.recv(1024)
+            # print("Client received ACK")
+            # print(clientACK)
+
+    def ReceiveDataFromServer(self):
+        amountrecv = 0
+        packetsize = int(self._server.recv(1024))
+
+        self._server.sendall("receivedSize")
+        print(packetsize)
+        data = ""
+        while amountrecv < packetsize:
+            print(amountrecv)
+
+            rec = self._server.recv(1024)    # This listens for data from the server. Program execution is blocked here until data is received
+    
+            amountrecv += len(rec)
+            data+=rec
+
+        print(amountrecv)
+
+        self._server.sendall("received")
+        return data
 
 def main():
     # implement main client execution here. I imagine this is for a single client.
