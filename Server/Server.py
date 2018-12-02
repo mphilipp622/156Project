@@ -168,30 +168,30 @@ class Server:
 
         while True:
             self.BroadcastNewBiddingRound()
-            # self.GetBidsFromClients()
-            # self.BroadcastToWinner()
+            self.GetBidsFromClients()
+            self.BroadcastToWinner()
             time.sleep(1)   # sleep thread between bidding rounds
 
     # helper function for properly receivin data from server
     def ReceiveDataFromClient(self, socket):
         amountrecv = 0
-        packetsize = int(clientSocket.recv(1024))
+        packetsize = int(socket.recv(1024))
 
-        clientSocket.sendall("receivedSize")
+        socket.sendall("receivedSize")
         data = ""
 
         while amountrecv < packetsize:
             try:
-                rec = clientSocket.recv(1024)
+                rec = socket.recv(1024)
             except:
                 print("Exception Occurred")
-                clientSocket.close()
+                socket.close()
 
             amountrecv += len(rec)
 
             data += rec
         
-        clientSocket.sendall("received")
+        socket.sendall("received")
         return data
     
 def main():

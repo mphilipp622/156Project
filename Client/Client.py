@@ -28,11 +28,11 @@ class Client:
 
         while True:                           # Infinite Loop
             data = self.ReceiveDataFromServer()
-            
+
             dataDecomp = pickle.loads(data)   # This decompresses the data sent from the server. This allows us to get a Tuple object from the server.
             #return
             print(dataDecomp[0])
-            continue
+
             # The server sends tuples in the form of ("Message", data)
             if dataDecomp[0] == "AuctionWon":
                 # If server sends "AuctionWon" message, it will contain Tuple data (Item, finalBidPrice)
@@ -43,8 +43,8 @@ class Client:
                 # The dictionary has keys of GUID strings with values of Auction type.
                 # You'll probably want to keep track of the client's active auction's GUID.
                 auctionChoice = random.choice(list(dataDecomp[1])) # randomly picks an auction to go for
-                dataToSend = pickle.dumps((auctionChoice, 3999))   # sends a bid to the auction for $3999
-                self._server.sendall(dataToSend)                      # sends the bid to the server. Server handles the rest
+                # dataToSend = pickle.dumps((auctionChoice, 3999))   # sends a bid to the auction for $3999
+                self.SendDataToServer(auctionChoice, 3999)                      # sends the bid to the server. Server handles the rest
 
     def JoinAuction(self):
         # This function should first check if this client has an active auction or not.
@@ -87,8 +87,8 @@ class Client:
             # print("S received size")
             
             self._server.sendall(dataToSend)
-            while clientACK == "notReceived":
-                clientACK = self._server.recv(1024)
+            while serverACK == "notReceived":
+                serverACK = self._server.recv(1024)
             # print("Client received ACK")
             # print(clientACK)
 
