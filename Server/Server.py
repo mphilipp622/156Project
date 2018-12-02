@@ -149,7 +149,7 @@ class Server:
 
         while clientACK == "notReceived":
 
-            clientSocket.send(str(len(dataToSend)))
+            clientSocket.sendall(str(len(dataToSend)))
             receivedSize = clientSocket.recv(1024)
             
             if receivedSize != "receivedSize":
@@ -162,16 +162,7 @@ class Server:
                 clientACK = clientSocket.recv(1024)
             print("Client received ACK")
             # print(clientACK)
-        
-    def ServerLoop(self):
-        print("ServerLoop")
-
-        while True:
-            self.BroadcastNewBiddingRound()
-            self.GetBidsFromClients()
-            self.BroadcastToWinner()
-            time.sleep(1)   # sleep thread between bidding rounds
-
+    
     # helper function for properly receivin data from server
     def ReceiveDataFromClient(self, socket):
         amountrecv = 0
@@ -193,6 +184,15 @@ class Server:
         
         socket.sendall("received")
         return data
+        
+    def ServerLoop(self):
+        print("ServerLoop")
+
+        while True:
+            self.BroadcastNewBiddingRound()
+            self.GetBidsFromClients()
+            self.BroadcastToWinner()
+            time.sleep(1)   # sleep thread between bidding rounds
     
 def main():
     # Program Execution
