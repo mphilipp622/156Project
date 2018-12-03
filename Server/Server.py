@@ -149,8 +149,8 @@ class Server:
 
         while clientACK == "notReceived":
 
-            clientSocket.sendall(str(len(dataToSend)))
-            receivedSize = clientSocket.recv(1024)
+            clientSocket.sendall(str(len(dataToSend)).encode())
+            receivedSize = clientSocket.recv(1024).decode()
             
             if receivedSize != "receivedSize":
                 continue
@@ -159,7 +159,7 @@ class Server:
             
             clientSocket.sendall(dataToSend)
             while clientACK == "notReceived":
-                clientACK = clientSocket.recv(1024)
+                clientACK = clientSocket.recv(1024).decode()
             print("Client received ACK")
             # print(clientACK)
     
@@ -168,8 +168,8 @@ class Server:
         amountrecv = 0
         packetsize = int(socket.recv(1024))
 
-        socket.sendall("receivedSize")
-        data = ""
+        socket.sendall("receivedSize".encode())
+        data = b""
 
         while amountrecv < packetsize:
             try:
@@ -182,7 +182,7 @@ class Server:
 
             data += rec
         
-        socket.sendall("received")
+        socket.sendall("received".encode())
         return data
         
     def ServerLoop(self):

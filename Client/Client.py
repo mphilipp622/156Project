@@ -78,8 +78,8 @@ class Client:
 
         while serverACK == "notReceived":
 
-            self._server.send(str(len(dataToSend))) # send the packet size
-            receivedSize = self._server.recv(1024)  # wait for server acknowledgement
+            self._server.send(str(len(dataToSend)).encode()) # send the packet size
+            receivedSize = self._server.recv(1024).decode()  # wait for server acknowledgement
             
             if receivedSize != "receivedSize":
                 continue
@@ -88,28 +88,28 @@ class Client:
             
             self._server.sendall(dataToSend)
             while serverACK == "notReceived":
-                serverACK = self._server.recv(1024)
+                serverACK = self._server.recv(1024).decode()
             # print("Client received ACK")
             # print(clientACK)
 
     def ReceiveDataFromServer(self):
         amountrecv = 0
-        packetsize = int(self._server.recv(1024))
+        packetsize = int(self._server.recv(1024).decode())
 
-        self._server.sendall("receivedSize")
+        self._server.sendall("receivedSize".encode())
         print(packetsize)
-        data = ""
+        data = b""
         while amountrecv < packetsize:
             print(amountrecv)
 
             rec = self._server.recv(1024)    # This listens for data from the server. Program execution is blocked here until data is received
-    
+            # print(type(pickle.loads(rec)))
             amountrecv += len(rec)
-            data+=rec
+            data += rec
 
         print(amountrecv)
 
-        self._server.sendall("received")
+        self._server.sendall("received".encode())
         return data
 
 def main():
