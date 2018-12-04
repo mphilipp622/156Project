@@ -22,7 +22,7 @@ class Client:
         # this function should connect the client to the server.
         
         self._server = socket.socket()
-        self._server.connect(("Zinge-Laptop", 12345))   # connect to localhost on port 12345, which is specified in server file
+        self._server.connect(("", 12345))   # connect to localhost on port 12345, which is specified in server file
         #127.0.0.1
 
     def ClientLoop(self):
