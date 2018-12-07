@@ -36,17 +36,18 @@ class Client:
             if dataDecomp[0] == "AuctionWon":
                 # If server sends "AuctionWon" message, it will contain Tuple data (Item, finalBidPrice)
                 print("Won " + dataDecomp[1][0].GetName())
+                self.GetWonItem(dataDecomp)
+                print(" Balance: " + str(self._balance))
 
             elif dataDecomp[0] == "NewRound":
                 if self._activeAuction is not None:
                     self._activeAuction = self.GetUpdatedPriceForAuction(dataDecomp)
                 else:
                     self.JoinAuction(dataDecomp)
-                    
                     auctionChoice = random.choice(list(dataDecomp[1])) # randomly picks an auction to go for
                     self._activeAuction = (auctionChoice, dataDecomp[1][auctionChoice])
                 
-                self.SendBid()
+                self.SendBid(dataDecomp)
 
                 # If server sends "NewRound" message, it will contain a dictionary of auction items
                 # The dictionary has keys of GUID strings with values of Auction type.
@@ -64,14 +65,16 @@ class Client:
         if(self._activeAuction is not None):
             return
         else: #it is None, so pull list of auctions
-            #loadedData = pickle.loads(data)
             auctionChoice = random.choice(list(data[1]))
             self._activeAuction = (auctionChoice, data[1][auctionChoice])
             return
     
-    def SendBid(self):
+    def SendBid(self, data):
         if(self._activeAuction is not None):
-            self.SendDataToServer(self._activeAuction[0], 3999)
+            currentBid = self._activeAuction[1].GetCurrentBid()
+            randomBid = random.randint(currentBid, self._balance)
+            print(" Client Bid of " + str(randomBid) + " on ID: " + self._activeAuction[0])
+            self.SendDataToServer(self._activeAuction[0], randomBid)
             return
         else:
             return
@@ -84,7 +87,7 @@ class Client:
 
     def GetWonItem(self, dataDecomp):
         self._inventory.append(dataDecomp[1])
-        self._balance - self._balance - dataDecomp[1][1]
+        self._balance = self._balance -  self._activeAuction[1].GetCurrentBid()
         self._activeAuction = None
         # this function should listen for the server to send an item to this client upon winning a bid.
         # The item will be sent as an (Item, finalBidPrice) tuple
@@ -143,7 +146,7 @@ def main():
         print("Error: Please put in an IP address for the server. E.G: python Client.py 192.168.1.1")
         exit()
     
-    testClient = Client(sys.argv[1], 150)    # client has $150 balance
+    testClient = Client(sys.argv[1], 10000)    # client has $150 balance
     testClient.ClientLoop()
     
 if __name__ == "__main__":
