@@ -7,7 +7,14 @@ class Auction:
         self._currentHighestBidder = None
         self._numberOfRoundsWithoutBid = 0 # this will track how many rounds this auction has had no bids
         self._receivedBidThisRound = False
+        self._listOfBidders = list()
 
+    def AddBidder(self, userID):
+        self._listOfBidders.append(userID)
+
+    def GetBidders(self):
+        return self._listOfBidders
+    
     def GetItem(self):
         return self._item
 
@@ -47,3 +54,4 @@ class Auction:
         self._currentHighestBidder = None
         self._currentBid = self._item.GetInitialPrice()
         self._receivedBidThisRound = False
+        self._listOfBidders.clear()
