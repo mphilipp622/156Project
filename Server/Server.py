@@ -24,6 +24,7 @@ class Server:
         self._maxNumberOfClients = newMaxNumberOfClients # Specifies the max number of clients server accepts
         self._connections = dict() # hashtable of (userID, socket) KV pairs
         self._auctions = dict() # hashtable of auctionID key with a value of Auction
+        self._auctionsToDelete = list() # will contain a list of auctions that need to be deleted after a round
         self._getBidLock = threading.Lock()
         self._lifetimeConnectionCount = 0 # tracks how many clients have connected over the lifetime of execution. Used for grabbing sockets from _connections
 
@@ -67,11 +68,17 @@ class Server:
 
         if self._auctions[auctionID].GetItem().GetUnits() <= 0:
             # if the item has no more units, delete it from the dictionary
-            del self._auctions[auctionID]
+            self._auctionsToDelete.append(auctionID)
         else:
             # otherwise, reset the auction
             self._auctions[auctionID].ResetAuction()
 
+    def DeleteInvalidAuctions(self):
+        # removes auctions that no longer have any items left.
+        for auctionID in self._auctionsToDelete:
+            del self._auctions[auctionID]
+
+        self._auctionsToDelete.clear()
 
     def GetBidsFromClients(self):
 
@@ -101,7 +108,10 @@ class Server:
         dataToSend = pickle.dumps(("NewRound", self._auctions))
 
         for clientID, clientSocket in self._connections.items():
-            self.SendDataToClient(clientSocket, "NewRound", self._auctions)
+            if len(self._auctions) == 0:
+                self.SendDataToClient(clientSocket, "AuctionsClosed", None)
+            else:
+                self.SendDataToClient(clientSocket, "NewRound", self._auctions)
     
     def PopulateItems(self, inputFile):
         # This function is called from constructor. It will parse the input file and start auctions for each item
@@ -130,15 +140,17 @@ class Server:
 
         for auctionID, auction in self._auctions.items():
             if auction.IsFinished():
-                try:
-                    # send a tuple to the client of ("AuctionWon", (item, finalBid))
-                    tupleToSend = (auction.GetItem(), auction.GetCurrentBid())
-                    clientSocket = self._connections[auction.GetCurrentHighestBidder()]
-                    self.SendDataToClient(clientSocket, "AuctionWon", tupleToSend)
-                    self.CloseAuction(auctionID)
-                except socket.error:
-                    print("Failed to deliver item to winner Client " + str(auction.GetCurrentHighestBidder()) )
-                    # del self._connections[self._currentHighestBidder[0]]
+                # send a tuple to the client of ("AuctionWon", (item, finalBid))
+                tupleToSend = (auction.GetItem(), auction.GetCurrentBid())
+                clientSocket = self._connections[auction.GetCurrentHighestBidder()]
+                self.SendDataToClient(clientSocket, "AuctionWon", tupleToSend)
+
+                for bidderID in auction.GetBidders():
+                    # tell all other bidders auction closed
+                    loserSocket = self._connections[bidderID]
+                    self.SendDataToClient(loserSocket, "AuctionLost", None)
+                
+                self.CloseAuction(auctionID)
     
     def SendDataToClient(self, clientSocket, message, data):
         # helper function that packages data and sends it to a client
@@ -190,6 +202,7 @@ class Server:
             self.BroadcastNewBiddingRound()
             self.GetBidsFromClients()
             self.BroadcastToWinner()
+            self.DeleteInvalidAuctions()
             time.sleep(1)   # sleep thread between bidding rounds
     
 def main():

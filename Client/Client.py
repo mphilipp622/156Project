@@ -32,10 +32,17 @@ class Client:
             #return
             print(dataDecomp[0])
 
+            if dataDecomp[0] == "AuctionsClosed":
+                self.CloseClient()
+
+            if dataDecomp[0] == "AuctionLost":
+                self._activeAuction = None
+
             # The server sends tuples in the form of ("Message", data)
             if dataDecomp[0] == "AuctionWon":
                 # If server sends "AuctionWon" message, it will contain Tuple data (Item, finalBidPrice)
                 print("Won " + dataDecomp[1][0].GetName())
+                self._activeAuction = None
 
             elif dataDecomp[0] == "NewRound":
                 if self._activeAuction is not None:
@@ -81,6 +88,12 @@ class Client:
         # According to Ming Li, the client has a 30% chance of NOT bidding
         # Client should send a tuple (auctionGUID, bidAmount)
         return
+
+    def CloseClient(self):
+        print("No More Items to Bid On. Closing Connection")
+        self._server.close()
+        print(self._inventory)
+        exit()
 
     def GetWonItem(self, dataDecomp):
         self._inventory.append(dataDecomp[1])
