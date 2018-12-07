@@ -27,9 +27,8 @@ class Client:
         # The loop should run a series of Functions that are defined in this class. Recommend having a look at Server.ServerLoop() for an example
 
         while True:                           # Infinite Loop
-            data = self.ReceiveDataFromServer()
+            dataDecomp = self.ReceiveDataFromServer()
 
-            dataDecomp = pickle.loads(data)   # This decompresses the data sent from the server. This allows us to get a Tuple object from the server.
             #return
             print(dataDecomp[0])
 
@@ -39,11 +38,20 @@ class Client:
                 print("Won " + dataDecomp[1][0].GetName())
 
             elif dataDecomp[0] == "NewRound":
+                if self._activeAuction is not None:
+                    self._activeAuction = self.GetUpdatedPriceForAuction(dataDecomp)
+                else:
+                    # self.JoinAuction()
+                    
+                    auctionChoice = random.choice(list(dataDecomp[1])) # randomly picks an auction to go for
+                    self._activeAuction = (auctionChoice, dataDecomp[1][auctionChoice])
+                
+                # self.SendBid()
+
                 # If server sends "NewRound" message, it will contain a dictionary of auction items
                 # The dictionary has keys of GUID strings with values of Auction type.
                 # You'll probably want to keep track of the client's active auction's GUID.
-                auctionChoice = random.choice(list(dataDecomp[1])) # randomly picks an auction to go for
-                # dataToSend = pickle.dumps((auctionChoice, 3999))   # sends a bid to the auction for $3999
+                
                 self.SendDataToServer(auctionChoice, 3999)                      # sends the bid to the server. Server handles the rest
 
     def JoinAuction(self):
@@ -53,7 +61,10 @@ class Client:
             # ("NewRound", auctionDictionary)
             # auctionDictionary has GUID strings as a key and Auction class objects as types.
             # You'll want to save the GUID of the auction that the client chooses. You'll need it to send a bid to the server.
-        
+
+        # auctionChoice = random.choice(list(dataDecomp[1])) # randomly picks an auction GUID to go for
+        # self._activeAuction = (auctionChoice, dataDecomp[1][auctionChoice]) # dataDecomp[1] grabs the dictionary. We use the randomly selected GUID to grab an Auction object from the dictionary
+
         return
     
     def SendBid(self):
@@ -70,6 +81,9 @@ class Client:
         # The item will be sent as an (Item, finalBidPrice) tuple
         # The client should add the new item to the inventory list and subtract the cost from their current balance
         return
+
+    def GetUpdatedPriceForAuction(self, data):
+        return (self._activeAuction[0], data[1], self._activeAuction[0])
 
     def SendDataToServer(self, message, data):
         # helper function that packages data and sends it to a client
@@ -110,7 +124,7 @@ class Client:
         print(amountrecv)
 
         self._server.sendall("received".encode())
-        return data
+        return pickle.loads(data)
 
 def main():
     # implement main client execution here. I imagine this is for a single client.

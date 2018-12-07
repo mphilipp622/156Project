@@ -81,11 +81,9 @@ class Server:
 
         for clientID, clientSocket in self._connections.items():
             
-            data = self.ReceiveDataFromClient(clientSocket)
-                
             # should receive a tuple (itemName, clientBid) from client
-            auctionID, clientBid = pickle.loads(data)
-
+            auctionID, clientBid = self.ReceiveDataFromClient(clientSocket)
+            
             item = self._auctions[auctionID].GetItem() # grab the Item instance
             print(auctionID)
             print(item.GetName())
@@ -183,7 +181,7 @@ class Server:
             data += rec
         
         socket.sendall("received".encode())
-        return data
+        return pickle.loads(data)
         
     def ServerLoop(self):
         print("ServerLoop")
