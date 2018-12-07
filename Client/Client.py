@@ -92,7 +92,7 @@ class Client:
         return
 
     def GetUpdatedPriceForAuction(self, data):
-        return (self._activeAuction[0], data[1])
+        return (self._activeAuction[0], data[1][self._activeAuction[0]])
 
     def SendDataToServer(self, message, data):
         # helper function that packages data and sends it to a client
