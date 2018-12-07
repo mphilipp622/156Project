@@ -41,49 +41,58 @@ class Client:
                 if self._activeAuction is not None:
                     self._activeAuction = self.GetUpdatedPriceForAuction(dataDecomp)
                 else:
-                    # self.JoinAuction()
+                    self.JoinAuction(dataDecomp)
                     
                     auctionChoice = random.choice(list(dataDecomp[1])) # randomly picks an auction to go for
                     self._activeAuction = (auctionChoice, dataDecomp[1][auctionChoice])
                 
-                # self.SendBid()
+                self.SendBid()
 
                 # If server sends "NewRound" message, it will contain a dictionary of auction items
                 # The dictionary has keys of GUID strings with values of Auction type.
                 # You'll probably want to keep track of the client's active auction's GUID.
                 
-                self.SendDataToServer(auctionChoice, 3999)                      # sends the bid to the server. Server handles the rest
+                #self.SendDataToServer(auctionChoice, 3999)                      # sends the bid to the server. Server handles the rest
 
-    def JoinAuction(self):
+    def JoinAuction(self, data):
         # This function should first check if this client has an active auction or not.
         # If we don't have an active auction, then we want to receive the list of auctions from the server and let the client pick one
         # The server sends a list of auctions in this format:
             # ("NewRound", auctionDictionary)
             # auctionDictionary has GUID strings as a key and Auction class objects as types.
             # You'll want to save the GUID of the auction that the client chooses. You'll need it to send a bid to the server.
-
-        # auctionChoice = random.choice(list(dataDecomp[1])) # randomly picks an auction GUID to go for
-        # self._activeAuction = (auctionChoice, dataDecomp[1][auctionChoice]) # dataDecomp[1] grabs the dictionary. We use the randomly selected GUID to grab an Auction object from the dictionary
-
-        return
+        if(self._activeAuction is not None):
+            return
+        else: #it is None, so pull list of auctions
+            #loadedData = pickle.loads(data)
+            auctionChoice = random.choice(list(data[1]))
+            self._activeAuction = (auctionChoice, data[1][auctionChoice])
+            return
     
     def SendBid(self):
+        if(self._activeAuction is not None):
+            self.SendDataToServer(self._activeAuction[0], 3999)
+            return
+        else:
+            return
         # If this client has an active auction, it should send a new bid for that auction to the server.
         # Client should NOT be able to bid if the amount they are looking to spend is larger than their current balance
         # Client should send None if it is not bidding on an item
         # According to Ming Li, the client has a 30% chance of NOT bidding
         # Client should send a tuple (auctionGUID, bidAmount)
-
         return
 
-    def GetWonItem(self):
+    def GetWonItem(self, dataDecomp):
+        self._inventory.append(dataDecomp[1])
+        self._balance - self._balance - dataDecomp[1][1]
+        self._activeAuction = None
         # this function should listen for the server to send an item to this client upon winning a bid.
         # The item will be sent as an (Item, finalBidPrice) tuple
         # The client should add the new item to the inventory list and subtract the cost from their current balance
         return
 
     def GetUpdatedPriceForAuction(self, data):
-        return (self._activeAuction[0], data[1], self._activeAuction[0])
+        return (self._activeAuction[0], data[1][self._activeAuction[0]])
 
     def SendDataToServer(self, message, data):
         # helper function that packages data and sends it to a client
