@@ -16,6 +16,9 @@ class Auction:
 
     def GetCurrentHighestBidder(self):
         return self._currentHighestBidder
+
+    def GetHighestBid(self):
+        return self._currentBid
     
     def SetNewHighestBid(self, newBidder, newBid):
         # updates the current bid and current highest bidder

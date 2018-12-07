@@ -81,11 +81,9 @@ class Server:
 
         for clientID, clientSocket in self._connections.items():
             
-            data = self.ReceiveDataFromClient(clientSocket)
-                
             # should receive a tuple (itemName, clientBid) from client
-            auctionID, clientBid = pickle.loads(data)
-
+            auctionID, clientBid = self.ReceiveDataFromClient(clientSocket)
+            
             item = self._auctions[auctionID].GetItem() # grab the Item instance
             print(auctionID)
             print(item.GetName())
@@ -149,8 +147,8 @@ class Server:
 
         while clientACK == "notReceived":
 
-            clientSocket.sendall(str(len(dataToSend)))
-            receivedSize = clientSocket.recv(1024)
+            clientSocket.sendall(str(len(dataToSend)).encode())
+            receivedSize = clientSocket.recv(1024).decode()
             
             if receivedSize != "receivedSize":
                 continue
@@ -159,7 +157,7 @@ class Server:
             
             clientSocket.sendall(dataToSend)
             while clientACK == "notReceived":
-                clientACK = clientSocket.recv(1024)
+                clientACK = clientSocket.recv(1024).decode()
             print("Client received ACK")
             # print(clientACK)
     
@@ -168,8 +166,8 @@ class Server:
         amountrecv = 0
         packetsize = int(socket.recv(1024))
 
-        socket.sendall("receivedSize")
-        data = ""
+        socket.sendall("receivedSize".encode())
+        data = b""
 
         while amountrecv < packetsize:
             try:
@@ -182,8 +180,8 @@ class Server:
 
             data += rec
         
-        socket.sendall("received")
-        return data
+        socket.sendall("received".encode())
+        return pickle.loads(data)
         
     def ServerLoop(self):
         print("ServerLoop")
