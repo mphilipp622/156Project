@@ -78,7 +78,7 @@ class Server:
         for auctionID in self._auctionsToDelete:
             del self._auctions[auctionID]
 
-        self._auctionsToDelete.clear()
+        self._auctionsToDelete = []
 
     def GetBidsFromClients(self):
 
@@ -89,7 +89,7 @@ class Server:
         for clientID, clientSocket in self._connections.items():
             
             # should receive a tuple (itemName, clientBid) from client
-            auctionID, clientBid = self.ReceiveDataFromClient(clientSocket)
+            auctionID, clientBid = self.ReceiveDataFromClient(clientID, clientSocket)
             
             item = self._auctions[auctionID].GetItem() # grab the Item instance
             print(auctionID)
@@ -109,9 +109,9 @@ class Server:
 
         for clientID, clientSocket in self._connections.items():
             if len(self._auctions) == 0:
-                self.SendDataToClient(clientSocket, "AuctionsClosed", None)
+                self.SendDataToClient(clientID, clientSocket, "AuctionsClosed", None)
             else:
-                self.SendDataToClient(clientSocket, "NewRound", self._auctions)
+                self.SendDataToClient(clientID, clientSocket, "NewRound", self._auctions)
     
     def PopulateItems(self, inputFile):
         # This function is called from constructor. It will parse the input file and start auctions for each item
@@ -143,57 +143,69 @@ class Server:
                 # send a tuple to the client of ("AuctionWon", (item, finalBid))
                 tupleToSend = (auction.GetItem(), auction.GetCurrentBid())
                 clientSocket = self._connections[auction.GetCurrentHighestBidder()]
-                self.SendDataToClient(clientSocket, "AuctionWon", tupleToSend)
+                self.SendDataToClient(auction.GetCurrentHighestBidder(), clientSocket, "AuctionWon", tupleToSend)
 
                 for bidderID in auction.GetBidders():
                     # tell all other bidders auction closed
                     loserSocket = self._connections[bidderID]
-                    self.SendDataToClient(loserSocket, "AuctionLost", None)
+                    self.SendDataToClient(bidderID, loserSocket, "AuctionLost", None)
                 
                 self.CloseAuction(auctionID)
     
-    def SendDataToClient(self, clientSocket, message, data):
+    def SendDataToClient(self, clientID, clientSocket, message, data):
         # helper function that packages data and sends it to a client
         clientACK = "notReceived"
         dataToSend = pickle.dumps((message, data)) # ("NewRound", dict())
 
         while clientACK == "notReceived":
 
-            clientSocket.sendall(str(len(dataToSend)).encode())
-            receivedSize = clientSocket.recv(1024).decode()
+            try:
+                clientSocket.sendall(str(len(dataToSend)).encode())
+                receivedSize = clientSocket.recv(1024).decode()
             
-            if receivedSize != "receivedSize":
-                continue
+                if receivedSize != "receivedSize":
+                    continue
 
-            print("Client received size")
-            
-            clientSocket.sendall(dataToSend)
-            while clientACK == "notReceived":
-                clientACK = clientSocket.recv(1024).decode()
+                print("Client received size")
+                
+                clientSocket.sendall(dataToSend)
+
+                while clientACK == "notReceived":
+                    clientACK = clientSocket.recv(1024).decode()
+                    
+            except socket.error as error:
+                self.CloseConnection(clientID, clientSocket)
+
             print("Client received ACK")
             # print(clientACK)
     
     # helper function for properly receivin data from server
-    def ReceiveDataFromClient(self, socket):
+    def ReceiveDataFromClient(self, clientID, socket):
         amountrecv = 0
-        packetsize = int(socket.recv(1024))
 
-        socket.sendall("receivedSize".encode())
-        data = b""
+        try:
+            packetsize = int(socket.recv(1024))
 
-        while amountrecv < packetsize:
-            try:
+            socket.sendall("receivedSize".encode())
+            data = b""
+
+            while amountrecv < packetsize:
                 rec = socket.recv(1024)
-            except:
-                print("Exception Occurred")
-                socket.close()
 
-            amountrecv += len(rec)
+                amountrecv += len(rec)
 
-            data += rec
+                data += rec
+            
+            socket.sendall("received".encode())
         
-        socket.sendall("received".encode())
+        except socket.error as error:
+            self.CloseConnection(clientID, socket)
+
         return pickle.loads(data)
+
+    def CloseConnection(self, clientID, clientSocket):
+        clientSocket.close()
+        del self._connections[clientID]
         
     def ServerLoop(self):
         print("ServerLoop")
