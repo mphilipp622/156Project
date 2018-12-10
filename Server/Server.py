@@ -166,17 +166,17 @@ class Server:
                 if receivedSize != "receivedSize":
                     continue
 
-                print("Client received size")
+                # print("Client received size")
                 
                 clientSocket.sendall(dataToSend)
 
                 while clientACK == "notReceived":
                     clientACK = clientSocket.recv(1024).decode()
                     
-            except socket.error as error:
+            except socket.error as e:
                 self.CloseConnection(clientID, clientSocket)
 
-            print("Client received ACK")
+            # print("Client received ACK")
             # print(clientACK)
     
     # helper function for properly receivin data from server
@@ -198,7 +198,7 @@ class Server:
             
             socket.sendall("received".encode())
         
-        except socket.error as error:
+        except socket.error as e:
             self.CloseConnection(clientID, socket)
 
         return pickle.loads(data)
