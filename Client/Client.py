@@ -33,7 +33,7 @@ class Client:
             dataDecomp = self.ReceiveDataFromServer()
            
             if dataDecomp[0] == "AuctionsClosed":
-                self.CloseClient()
+                self.CloseClient("No More Items to Bid On. Closing Connection\n")
 
             elif dataDecomp[0] == "AuctionLost":
                 self._activeAuction = None
@@ -41,9 +41,9 @@ class Client:
             # The server sends tuples in the form of ("Message", data)
             elif dataDecomp[0] == "AuctionWon":
                 # If server sends "AuctionWon" message, it will contain Tuple data (Item, finalBidPrice)
-                print(" Won " + dataDecomp[1][0].GetName())
+                print("Won " + dataDecomp[1][0].GetName() + "\n")
                 self.GetWonItem(dataDecomp)
-                print(" Balance: " + str(self._balance))
+                print("Balance: " + str(self._balance) + "\n")
 
             elif dataDecomp[0] == "NewRound":
                 if self._activeAuction is not None:
@@ -68,7 +68,7 @@ class Client:
                     auctionsICanAfford.append(key)
 
             if len(auctionsICanAfford) == 0:
-                self.CloseClient()
+                self.CloseClient("Cannot afford anymore items. Closing Connection\n")
 
             auctionChoice = random.choice(auctionsICanAfford)
             self._activeAuction = (auctionChoice, data[1][auctionChoice])
@@ -78,23 +78,24 @@ class Client:
             currentBid = self._activeAuction[1].GetCurrentBid()
             if(currentBid == self._clientLastBid or currentBid > self._balance):
                 if(currentBid == self._clientLastBid):
-                    print("I HAVE HIGHEST BID CURRENTLY")
+                    print("I HAVE HIGHEST BID CURRENTLY\n")
                     self.SendDataToServer(self._activeAuction[0], 0)
                 else:
-                    print("I CANNOT BID DUE TO LOW BALANCE")
+                    print("I CANNOT BID DUE TO LOW BALANCE\n")
                     self.SendDataToServer(self._activeAuction[0], 0)
             elif random.randint(0, 100) > 30:  # RNG 30% chance to bid
                 randomBid = random.randint(currentBid, self._balance)
                 self._clientLastBid = randomBid
-                print("I AM BIDDING " + str(randomBid))
+                print("I AM BIDDING " + str(randomBid) + "\n")
                 self.SendDataToServer(self._activeAuction[0], randomBid)
             else:
+                print("NOT BIDDING\n")
                 self.SendDataToServer(None, None)
         else:
             self.SendDataToServer(None, None)
 
-    def CloseClient(self):
-        print("No More Items to Bid On. Closing Connection\n")
+    def CloseClient(self, closeMessage):
+        print(closeMessage)
         
         self._server.close()
 
@@ -115,7 +116,6 @@ class Client:
         self._balance = self._balance -  self._activeAuction[1].GetCurrentBid()
         self._activeAuction = None
         self._clientLastBid = None
-        print("won item " + itemName)
 
     def GetUpdatedPriceForAuction(self, data):
         return (self._activeAuction[0], data[1][self._activeAuction[0]])
@@ -127,38 +127,47 @@ class Client:
 
         while serverACK == "notReceived":
 
-            self._server.send(str(len(dataToSend)).encode()) # send the packet size
-            receivedSize = self._server.recv(1024).decode()  # wait for server acknowledgement
-            
-            if receivedSize != "receivedSize":
-                continue
+            try:
+                self._server.send(str(len(dataToSend)).encode()) # send the packet size
+                receivedSize = self._server.recv(1024).decode()  # wait for server acknowledgement
+                
+                if receivedSize != "receivedSize":
+                    continue
 
-            # print("S received size")
-            
-            self._server.sendall(dataToSend)
-            while serverACK == "notReceived":
-                serverACK = self._server.recv(1024).decode()
+                # print("S received size")
+                
+                self._server.sendall(dataToSend)
+                while serverACK == "notReceived":
+                    serverACK = self._server.recv(1024).decode()
+            except:
+                self.CloseClient("No more items to bid on. Quitting.")
             # print("Client received ACK")
             # print(clientACK)
 
     def ReceiveDataFromServer(self):
         amountrecv = 0
-        packetsize = int(self._server.recv(1024).decode())
 
-        self._server.sendall("receivedSize".encode())
-        # print(packetsize)
-        data = b""
-        while amountrecv < packetsize:
+        try:
+            packetsize = int(self._server.recv(1024).decode())
+
+            self._server.sendall("receivedSize".encode())
+            # print(packetsize)
+            data = b""
+            while amountrecv < packetsize:
+                # print(amountrecv)
+
+                rec = self._server.recv(1024)    # This listens for data from the server. Program execution is blocked here until data is received
+                # print(type(pickle.loads(rec)))
+                amountrecv += len(rec)
+                data += rec
+
             # print(amountrecv)
 
-            rec = self._server.recv(1024)    # This listens for data from the server. Program execution is blocked here until data is received
-            # print(type(pickle.loads(rec)))
-            amountrecv += len(rec)
-            data += rec
+            self._server.sendall("received".encode())
+        except:
+            self.CloseClient("No more items to bid on. Quitting.")
+            return
 
-        # print(amountrecv)
-
-        self._server.sendall("received".encode())
         return pickle.loads(data)
 
 def main():
