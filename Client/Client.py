@@ -16,6 +16,7 @@ class Client:
         self._activeAuction = None      # this Will be used to determine which auction the client is engaged in. Recommend a Tuple of (GUID, Auction). GUID is passed from the server
         self._inventory = list()        # list containing the items this client has won. Can use Item.AddUnit() to increase the number of units of the item
         self._server = None             # Server socket the client is connected to
+        self._clientLastBid = None
         self.ConnectToServer(serverIP)
 
     def ConnectToServer(self, serverIP):
@@ -30,7 +31,10 @@ class Client:
             dataDecomp = self.ReceiveDataFromServer()
 
             #return
+
+       
             print(dataDecomp[0])
+           
 
             if dataDecomp[0] == "AuctionsClosed":
                 self.CloseClient()
@@ -41,7 +45,7 @@ class Client:
             # The server sends tuples in the form of ("Message", data)
             if dataDecomp[0] == "AuctionWon":
                 # If server sends "AuctionWon" message, it will contain Tuple data (Item, finalBidPrice)
-                print("Won " + dataDecomp[1][0].GetName())
+                print(" Won " + dataDecomp[1][0].GetName())
                 self.GetWonItem(dataDecomp)
                 print(" Balance: " + str(self._balance))
 
@@ -53,6 +57,7 @@ class Client:
                     auctionChoice = random.choice(list(dataDecomp[1])) # randomly picks an auction to go for
                     self._activeAuction = (auctionChoice, dataDecomp[1][auctionChoice])
                 
+
                 self.SendBid(dataDecomp)
 
                 # If server sends "NewRound" message, it will contain a dictionary of auction items
@@ -78,9 +83,21 @@ class Client:
     def SendBid(self, data):
         if(self._activeAuction is not None):
             currentBid = self._activeAuction[1].GetCurrentBid()
-            randomBid = random.randint(currentBid, self._balance)
-            print(" Client Bid of " + str(randomBid) + " on ID: " + self._activeAuction[0])
-            self.SendDataToServer(self._activeAuction[0], randomBid)
+            if(currentBid == self._clientLastBid or currentBid > self._balance):
+                if(currentBid == self._clientLastBid):
+                    print("I HAVE HIGHEST BID CURRENTLY")
+                    self.SendDataToServer(self._activeAuction[0], 0)
+                else:
+                    print("I CANNOT BID DUE TO LOW BALANCE")
+                    self.SendDataToServer(self._activeAuction[0], 0)
+            else:
+               
+                randomBid = random.randint(currentBid, self._balance)
+                self._clientLastBid = randomBid
+                print("I AM BIDDING " + str(randomBid))
+                #print(" currentBid: " + str(currentBid) + " dataBid: " + str(data[1][self._activeAuction[0]].GetCurrentHighestBidder()))
+                #print(" Client Bid of " + str(randomBid) + " on ID: " + str(self._activeAuction[0]))
+                self.SendDataToServer(self._activeAuction[0], randomBid)
             return
         else:
             return
