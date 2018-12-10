@@ -91,6 +91,9 @@ class Server:
             # should receive a tuple (itemName, clientBid) from client
             auctionID, clientBid = self.ReceiveDataFromClient(clientSocket)
             
+            if auctionID is None or clientBid is 0:
+                continue
+
             item = self._auctions[auctionID].GetItem() # grab the Item instance
             print(auctionID)
             print(item.GetName())
@@ -165,12 +168,12 @@ class Server:
             if receivedSize != "receivedSize":
                 continue
 
-            print("Client received size")
+            # print("Client received size")
             
             clientSocket.sendall(dataToSend)
             while clientACK == "notReceived":
                 clientACK = clientSocket.recv(1024).decode()
-            print("Client received ACK")
+            # print("Client received ACK")
             # print(clientACK)
     
     # helper function for properly receivin data from server
@@ -203,7 +206,7 @@ class Server:
             self.GetBidsFromClients()
             self.BroadcastToWinner()
             self.DeleteInvalidAuctions()
-            time.sleep(1)   # sleep thread between bidding rounds
+            time.sleep(2)   # sleep thread between bidding rounds
     
 def main():
     # Program Execution
