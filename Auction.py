@@ -46,7 +46,7 @@ class Auction:
 
     def IsFinished(self):
         # returns true if this auction has gone 3 rounds with no bids and has a current bidder
-        return self._currentHighestBidder != None and self._numberOfRoundsWithoutBid >= 3
+        return (self._currentHighestBidder != None and self._numberOfRoundsWithoutBid >= 3)
 
     def ResetAuction(self):
         # resets all the main stats for the auction. Will be called by server

@@ -1,11 +1,2 @@
 Description	Units	Price
-Item1		1		121
-Item2		1		656
-Item3		1		434
-Item4		1		71
-Item5		1		247
-Item6		1		477
-Item7		1		357
-Item8		1		156
-Item9		1		801
-Item10		1		401
+Item1		5		121
