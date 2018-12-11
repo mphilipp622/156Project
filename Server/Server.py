@@ -200,15 +200,17 @@ class Server:
 
                 for bidderID in auction.GetBidders():
                     # tell all other bidders auction closed
-                    
-                    if bidderID == auction.GetCurrentHighestBidder():
-                        # ignore the other highest bidder
-                        continue
 
-                    loserSocket = self._connections[bidderID]
-                    self.SendDataToClient(bidderID, loserSocket, "AuctionLost", None)
+                    if bidderID not in self._connections:
+                        continue
+                    
+                    if bidderID != auction.GetCurrentHighestBidder():
+                        # ignore the other highest bidder
+                        loserSocket = self._connections[bidderID]
+                        self.SendDataToClient(bidderID, loserSocket, "AuctionLost", None)
                 
                 self.CloseAuction(auctionID)
+                self.DeleteDisconnectedClients()
         
         self.DeleteDisconnectedClients()
     

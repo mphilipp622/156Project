@@ -46,17 +46,16 @@ class Client:
 
             if dataDecomp[0] == "AuctionLost":
                 print("Lost auction for " + self._activeAuction[1].GetItem().GetName())
-                self.SendDataToServer(self._activeAuction[0], "LeaveAuction")
                 self.LeaveAuction()
 
             # The server sends tuples in the form of ("Message", data)
-            elif dataDecomp[0] == "AuctionWon":
+            if dataDecomp[0] == "AuctionWon":
                 # If server sends "AuctionWon" message, it will contain Tuple data (Item, finalBidPrice)
                 print("WON " + dataDecomp[1][0].GetName() + "\n")
                 self.GetWonItem(dataDecomp)
                 print("New Balance: " + str(self._balance) + "\n")
 
-            elif dataDecomp[0] == "NewRound":
+            if dataDecomp[0] == "NewRound":
                 if self._activeAuction is not None:
                     self._activeAuction = self.GetUpdatedPriceForAuction(dataDecomp)
                 else:
