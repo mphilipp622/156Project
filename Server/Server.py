@@ -28,6 +28,7 @@ class Server:
         self._getBidLock = threading.Lock()
         self._lifetimeConnectionCount = 0 # tracks how many clients have connected over the lifetime of execution. Used for grabbing sockets from _connections
         self._clientsToDelete = list()  # keeps a list of clients that have disconnected and need to be removed from connection dictionary
+        self._clientsToAdd = dict()     # keeps track of newly connected clients. We will add them after a round of bidding.
 
         self.PopulateItems(inputFile) # initialize random items
         self.StartServerListener()
@@ -57,14 +58,21 @@ class Server:
             try:
                 clientSocket, clientAddress = self._serverSocket.accept()
 
-                clientSocket.settimeout(60)
+                clientSocket.settimeout(10)
 
                 print("Got connection from ", clientAddress)
 
                 self._lifetimeConnectionCount += 1
-                self._connections[self._lifetimeConnectionCount] = clientSocket # add this client to the dictionary of connections    
+                self._clientsToAdd[self._lifetimeConnectionCount] = clientSocket
+                # self._connections[self._lifetimeConnectionCount] = clientSocket # add this client to the dictionary of connections    
             except:
                 break
+
+    def AddNewClients(self):
+        for key, value in self._clientsToAdd.items():
+            self._connections[key] = value
+        
+        self._clientsToAdd.clear()  # empty the dictionary
 
     def StartAuction(self, itemForSale):
         auctionMessage = "New Auction Started for item " + itemForSale.GetName() + ". Starting bid is $" + str(itemForSale.GetInitialPrice()) + "\n"
@@ -120,6 +128,10 @@ class Server:
 
             auctionID, clientBid = data
 
+            if clientBid == "LeaveAuction":
+                self._auctions[auctionID].RemoveBidder(clientID)    # remove the bidder from the
+                continue
+
             if auctionID == None and clientBid == None:
                 continue
             
@@ -127,6 +139,8 @@ class Server:
                 continue
 
             item = self._auctions[auctionID].GetItem() # grab the Item instance
+
+            self._auctions[auctionID].AddBidder(clientID)
 
             if clientBid > self._auctions[auctionID].GetCurrentBid():
                 self._auctions[auctionID].SetNewHighestBid(clientID, clientBid)
@@ -140,7 +154,9 @@ class Server:
 
     def BroadcastNewBiddingRound(self):
         # This function will tell all connected clients that another round of bidding has started
-        dataToSend = pickle.dumps(("NewRound", self._auctions))
+
+        if len(self._connections) == 0:
+            return
 
         for clientID, clientSocket in self._connections.items():
             if len(self._auctions) == 0:
@@ -184,6 +200,11 @@ class Server:
 
                 for bidderID in auction.GetBidders():
                     # tell all other bidders auction closed
+                    
+                    if bidderID == auction.GetCurrentHighestBidder():
+                        # ignore the other highest bidder
+                        continue
+
                     loserSocket = self._connections[bidderID]
                     self.SendDataToClient(bidderID, loserSocket, "AuctionLost", None)
                 
@@ -201,7 +222,7 @@ class Server:
             while clientACK == "notReceived":
 
                 clientSocket.sendall(str(len(dataToSend)).encode())
-                receivedSize = clientSocket.recv(1024).decode()
+                receivedSize = clientSocket.recv(4096).decode()
                 
                 if receivedSize != "receivedSize":
                     continue
@@ -210,7 +231,7 @@ class Server:
                 
                 clientSocket.sendall(dataToSend)
                 while clientACK == "notReceived":
-                    clientACK = clientSocket.recv(1024).decode()
+                    clientACK = clientSocket.recv(4096).decode()
                 # print("Client received ACK")
                 # print(clientACK)
         
@@ -222,13 +243,13 @@ class Server:
         amountrecv = 0
         
         try:
-            packetsize = int(clientSocket.recv(1024))
+            packetsize = int(clientSocket.recv(4096))
 
             clientSocket.sendall("receivedSize".encode())
             data = b""
 
             while amountrecv < packetsize:
-                rec = clientSocket.recv(1024)
+                rec = clientSocket.recv(4096)
 
                 amountrecv += len(rec)
 
@@ -245,11 +266,17 @@ class Server:
         print("ServerLoop\n")
 
         while True:
+
+            while len(self._connections) == 0 and len(self._clientsToAdd) == 0:
+                continue    # if there's no connections, spin lock until we get a connection.
+
             self.BroadcastNewBiddingRound()
             self.GetBidsFromClients()
             self.BroadcastToWinner()
             self.DeleteInvalidAuctions()
-            time.sleep(2)   # sleep thread between bidding rounds
+            self.DeleteDisconnectedClients()
+            self.AddNewClients()
+            time.sleep(1)   # sleep thread between bidding rounds
 
     def CloseConnection(self, clientID, clientSocket):
         print("CLOSE CONNECTION " + str(clientID) + "\n")

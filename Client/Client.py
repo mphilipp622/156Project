@@ -5,6 +5,7 @@ sys.path.append("..") # Adds higher directory to python modules path.
 import Item
 import random
 import Auction
+import math
 
 class Client:
 
@@ -17,12 +18,20 @@ class Client:
         self._inventory = dict()        # list containing the items this client has won.
         self._server = None             # Server socket the client is connected to
         self._clientLastBid = None
+        self._bidCeiling = None
         
         self.ConnectToServer(serverIP)
+
+    def SetBidCeiling(self, startingBid):
+        percentage = random.random()    # rand value between 0 and 1
+
+        # return a percentage of the starting difference between what the client has to spend and the starting bid
+        self._bidCeiling = startingBid + int((self._balance - startingBid) * percentage) + 1 
 
     def ConnectToServer(self, serverIP):
         # this function should connect the client to the server.
         self._server = socket.socket()
+        self._server.settimeout(10)
         self._server.connect((serverIP, 12345))   # connect to localhost on port 12345, which is specified in server file
     
     def ClientLoop(self):
@@ -35,24 +44,23 @@ class Client:
             if dataDecomp[0] == "AuctionsClosed":
                 self.CloseClient("No More Items to Bid On. Closing Connection\n")
 
-            elif dataDecomp[0] == "AuctionLost":
-                self._activeAuction = None
+            if dataDecomp[0] == "AuctionLost":
+                print("Lost auction for " + self._activeAuction[1].GetItem().GetName())
+                self.SendDataToServer(self._activeAuction[0], "LeaveAuction")
+                self.LeaveAuction()
 
             # The server sends tuples in the form of ("Message", data)
             elif dataDecomp[0] == "AuctionWon":
                 # If server sends "AuctionWon" message, it will contain Tuple data (Item, finalBidPrice)
-                print("Won " + dataDecomp[1][0].GetName() + "\n")
+                print("WON " + dataDecomp[1][0].GetName() + "\n")
                 self.GetWonItem(dataDecomp)
-                print("Balance: " + str(self._balance) + "\n")
+                print("New Balance: " + str(self._balance) + "\n")
 
             elif dataDecomp[0] == "NewRound":
                 if self._activeAuction is not None:
                     self._activeAuction = self.GetUpdatedPriceForAuction(dataDecomp)
                 else:
-                    self.JoinAuction(dataDecomp)
-                    auctionChoice = random.choice(list(dataDecomp[1])) # randomly picks an auction to go for
-                    self._activeAuction = (auctionChoice, dataDecomp[1][auctionChoice])
-                
+                    self.JoinAuction(dataDecomp)                
 
                 self.SendBid(dataDecomp)
 
@@ -72,24 +80,31 @@ class Client:
 
             auctionChoice = random.choice(auctionsICanAfford)
             self._activeAuction = (auctionChoice, data[1][auctionChoice])
+            print("JOIN AUCTION for " + self._activeAuction[1].GetItem().GetName() + "\n")
+            self.SetBidCeiling(self._activeAuction[1].GetCurrentBid())
     
+    def LeaveAuction(self):
+        self._activeAuction = None
+        self._clientLastBid = None
+        self._bidCeiling = None
+
     def SendBid(self, data):
         if(self._activeAuction is not None):
             currentBid = self._activeAuction[1].GetCurrentBid()
-            if(currentBid == self._clientLastBid or currentBid > self._balance):
-                if(currentBid == self._clientLastBid):
-                    print("I HAVE HIGHEST BID CURRENTLY\n")
-                    self.SendDataToServer(self._activeAuction[0], 0)
-                else:
-                    print("I CANNOT BID DUE TO LOW BALANCE\n")
-                    self.SendDataToServer(self._activeAuction[0], 0)
-            elif random.randint(0, 100) > 30:  # RNG 30% chance to bid
-                randomBid = random.randint(currentBid, self._balance)
+            if currentBid == self._clientLastBid:
+                self.SendDataToServer(None, None)
+            elif currentBid >= self._bidCeiling:
+                print("CEILING REACHED. Leaving auction\n")
+                self.SendDataToServer(self._activeAuction[0], "LeaveAuction")
+                self.LeaveAuction()
+            elif random.random() > 0.3:  # RNG 70% chance to bid
+                maxBid = currentBid + math.ceil(int((self._bidCeiling - currentBid) * 0.25)) + 1 # only bids up to 25% of the difference between bid ceiling and current bid at a time
+                randomBid = random.randint(currentBid + 1, maxBid)   
                 self._clientLastBid = randomBid
-                print("I AM BIDDING " + str(randomBid) + "\n")
+                print("BID $" + str(randomBid) + " on " + self._activeAuction[1].GetItem().GetName() + "\n")
                 self.SendDataToServer(self._activeAuction[0], randomBid)
             else:
-                print("NOT BIDDING\n")
+                print("NO BID on " + self._activeAuction[1].GetItem().GetName() + "\n")
                 self.SendDataToServer(None, None)
         else:
             self.SendDataToServer(None, None)
@@ -113,9 +128,11 @@ class Client:
             self._inventory[itemName] = 1
         else:
             self._inventory[itemName] += 1
+
         self._balance = self._balance -  self._activeAuction[1].GetCurrentBid()
         self._activeAuction = None
         self._clientLastBid = None
+        self._bidCeiling = None
 
     def GetUpdatedPriceForAuction(self, data):
         return (self._activeAuction[0], data[1][self._activeAuction[0]])
@@ -129,7 +146,7 @@ class Client:
 
             try:
                 self._server.send(str(len(dataToSend)).encode()) # send the packet size
-                receivedSize = self._server.recv(1024).decode()  # wait for server acknowledgement
+                receivedSize = self._server.recv(4096).decode()  # wait for server acknowledgement
                 
                 if receivedSize != "receivedSize":
                     continue
@@ -138,7 +155,7 @@ class Client:
                 
                 self._server.sendall(dataToSend)
                 while serverACK == "notReceived":
-                    serverACK = self._server.recv(1024).decode()
+                    serverACK = self._server.recv(4096).decode()
             except:
                 self.CloseClient("No more items to bid on. Quitting.")
             # print("Client received ACK")
@@ -148,7 +165,7 @@ class Client:
         amountrecv = 0
 
         try:
-            packetsize = int(self._server.recv(1024).decode())
+            packetsize = int(self._server.recv(4096).decode())
 
             self._server.sendall("receivedSize".encode())
             # print(packetsize)
@@ -156,7 +173,7 @@ class Client:
             while amountrecv < packetsize:
                 # print(amountrecv)
 
-                rec = self._server.recv(1024)    # This listens for data from the server. Program execution is blocked here until data is received
+                rec = self._server.recv(4096)    # This listens for data from the server. Program execution is blocked here until data is received
                 # print(type(pickle.loads(rec)))
                 amountrecv += len(rec)
                 data += rec

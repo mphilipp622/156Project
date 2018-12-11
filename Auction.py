@@ -10,7 +10,16 @@ class Auction:
         self._listOfBidders = list()
 
     def AddBidder(self, userID):
+        if userID in self._listOfBidders:
+            return
+
         self._listOfBidders.append(userID)
+
+    def RemoveBidder(self, userID):
+        if userID not in self._listOfBidders:
+            return
+
+        self._listOfBidders.remove(userID)
 
     def GetBidders(self):
         return self._listOfBidders
