@@ -53,10 +53,14 @@ class Server:
 
     def UpdateClientConnections(self):
         # Check for new clients and update our client dictionary
-
         while True:
+
             try:
                 clientSocket, clientAddress = self._serverSocket.accept()
+
+                if len(self._connections) >= self._maxNumberOfClients:
+                    clientSocket.close()
+                    continue
 
                 clientSocket.settimeout(10)
 
@@ -121,21 +125,19 @@ class Server:
             
             # should receive a tuple (itemName, clientBid) from client
             data = self.ReceiveDataFromClient(clientID, clientSocket)
-            
+
             if data is None:
-                # handle the case where the client disconnects
+                # client has disconnected
+                self.CloseConnection(clientID, clientSocket)
+                continue
+
+            if data[0] is None and data[1] is None:
                 continue
 
             auctionID, clientBid = data
 
             if clientBid == "LeaveAuction":
                 self._auctions[auctionID].RemoveBidder(clientID)    # remove the bidder from the
-                continue
-
-            if auctionID == None and clientBid == None:
-                continue
-            
-            if auctionID is None or clientBid is 0:
                 continue
 
             item = self._auctions[auctionID].GetItem() # grab the Item instance
@@ -278,9 +280,12 @@ class Server:
             self.DeleteInvalidAuctions()
             self.DeleteDisconnectedClients()
             self.AddNewClients()
-            time.sleep(1)   # sleep thread between bidding rounds
+            time.sleep(0.2)   # sleep thread between bidding rounds
 
     def CloseConnection(self, clientID, clientSocket):
+        if clientID in self._clientsToDelete:
+            return
+
         print("CLOSE CONNECTION " + str(clientID) + "\n")
         clientSocket.close()
         self._clientsToDelete.append(clientID)
