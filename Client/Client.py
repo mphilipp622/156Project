@@ -9,9 +9,6 @@ import math
 
 class Client:
 
-    # Recommend referring to this site for basic intro: https://www.geeksforgeeks.org/socket-programming-python/
-    # Recommend installing Python plugins for VS Code. The intellisense is awesome
-
     def __init__(self, serverIP, newBalance):
         self._balance = newBalance      # the amount of money this client has
         self._activeAuction = None      # this Will be used to determine which auction the client is engaged in. Recommend a Tuple of (GUID, Auction). GUID is passed from the server
@@ -24,10 +21,9 @@ class Client:
 
     def SetBidCeiling(self, startingBid):
         multiplier = random.randint(2, 10)
-
-        # highest bid will be 2 - 10 times the startingBid
+        demandForItem = self._balance - (startingBid + (startingBid * multiplier))    # take 2 - 10 times the starting bid of the item
         
-        self._bidCeiling = startingBid + (startingBid * multiplier)
+        self._bidCeiling = int((self._balance - demandForItem) * 0.15)  # take 15% of our balance minus the demand for the item. A higher multiplier results in a smaller demand
 
         if self._bidCeiling > self._balance:
             self._bidCeiling = self._balance    # handle the case where the ceilinge exceeds our balance.
@@ -84,7 +80,7 @@ class Client:
             auctionChoice = random.choice(auctionsICanAfford)
             self._activeAuction = (auctionChoice, data[1][auctionChoice])
             print("JOIN AUCTION for " + self._activeAuction[1].GetItem().GetName() + "\n")
-            self.SetBidCeiling(self._activeAuction[1].GetCurrentBid())
+            self.SetBidCeiling(self._activeAuction[1].GetItem().GetInitialPrice())
     
     def LeaveAuction(self):
         self._activeAuction = None
@@ -103,7 +99,7 @@ class Client:
                 self.SendDataToServer(self._activeAuction[0], "LeaveAuction")
                 self.LeaveAuction()
             elif random.random() > 0.3:  # RNG 70% chance to bid
-                maxBid = currentBid + math.ceil(int((self._bidCeiling - currentBid) * 0.25)) + 1 # only bids up to 25% of the difference between bid ceiling and current bid at a time
+                maxBid = currentBid + math.ceil(int(self._bidCeiling * 0.25)) + 1 # only bids up to 25% of the difference between bid ceiling and current bid at a time
                 randomBid = random.randint(currentBid + 1, maxBid)
 
                 self._clientLastBid = randomBid
