@@ -280,7 +280,7 @@ class Server:
             self.DeleteInvalidAuctions()
             self.DeleteDisconnectedClients()
             self.AddNewClients()
-            time.sleep(0.2)   # sleep thread between bidding rounds
+            time.sleep(1)   # sleep thread between bidding rounds
 
     def CloseConnection(self, clientID, clientSocket):
         if clientID in self._clientsToDelete:
