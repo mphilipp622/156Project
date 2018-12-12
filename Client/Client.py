@@ -23,10 +23,14 @@ class Client:
         self.ConnectToServer(serverIP)
 
     def SetBidCeiling(self, startingBid):
-        percentage = random.random()    # rand value between 0 and 1
+        multiplier = random.randint(2, 10)
 
-        # return a percentage of the starting difference between what the client has to spend and the starting bid
-        self._bidCeiling = startingBid + int((self._balance - startingBid) * percentage) + 1 
+        # highest bid will be 2 - 10 times the startingBid
+        
+        self._bidCeiling = startingBid + (startingBid * multiplier)
+
+        if self._bidCeiling > self._balance:
+            self._bidCeiling = self._balance    # handle the case where the ceilinge exceeds our balance.
 
     def ConnectToServer(self, serverIP):
         # this function should connect the client to the server.
@@ -45,7 +49,7 @@ class Client:
                 self.CloseClient("No More Items to Bid On. Closing Connection\n")
 
             if dataDecomp[0] == "AuctionLost":
-                print("Lost auction for " + self._activeAuction[1].GetItem().GetName())
+                print("LOST AUCTION for " + self._activeAuction[1].GetItem().GetName() + "\n")
                 self.LeaveAuction()
 
             # The server sends tuples in the form of ("Message", data)
@@ -71,7 +75,7 @@ class Client:
             auctionsICanAfford = list()
 
             for key, value in data[1].items():
-                if value.GetCurrentBid() <= self._balance:
+                if value.GetCurrentBid() < self._balance:
                     auctionsICanAfford.append(key)
 
             if len(auctionsICanAfford) == 0:
@@ -88,19 +92,24 @@ class Client:
         self._bidCeiling = None
 
     def SendBid(self, data):
-        if(self._activeAuction is not None):
+        if self._activeAuction is not None:
             currentBid = self._activeAuction[1].GetCurrentBid()
+
             if currentBid == self._clientLastBid:
                 self.SendDataToServer(None, None)
             elif currentBid >= self._bidCeiling:
                 print("CEILING REACHED. Leaving auction\n")
+
                 self.SendDataToServer(self._activeAuction[0], "LeaveAuction")
                 self.LeaveAuction()
             elif random.random() > 0.3:  # RNG 70% chance to bid
                 maxBid = currentBid + math.ceil(int((self._bidCeiling - currentBid) * 0.25)) + 1 # only bids up to 25% of the difference between bid ceiling and current bid at a time
-                randomBid = random.randint(currentBid + 1, maxBid)   
+                randomBid = random.randint(currentBid + 1, maxBid)
+
                 self._clientLastBid = randomBid
+
                 print("BID $" + str(randomBid) + " on " + self._activeAuction[1].GetItem().GetName() + "\n")
+
                 self.SendDataToServer(self._activeAuction[0], randomBid)
             else:
                 print("NO BID on " + self._activeAuction[1].GetItem().GetName() + "\n")
@@ -129,9 +138,7 @@ class Client:
             self._inventory[itemName] += 1
 
         self._balance = self._balance -  self._activeAuction[1].GetCurrentBid()
-        self._activeAuction = None
-        self._clientLastBid = None
-        self._bidCeiling = None
+        self.LeaveAuction()
 
     def GetUpdatedPriceForAuction(self, data):
         return (self._activeAuction[0], data[1][self._activeAuction[0]])
@@ -181,8 +188,7 @@ class Client:
 
             self._server.sendall("received".encode())
         except:
-            self.CloseClient("No more items to bid on. Quitting.")
-            return
+            self.CloseClient("Connection Error. Quitting.")
 
         return pickle.loads(data)
 
